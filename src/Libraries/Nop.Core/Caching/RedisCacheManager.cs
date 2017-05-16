@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Caching.Redis;
 using Newtonsoft.Json;
@@ -9,7 +10,7 @@ namespace Nop.Core.Caching
     /// Represents a manager for caching in Redis store (http://redis.io/).
     /// Mostly it'll be used when running in a web farm or Azure. But of course it can be also used on any server or environment
     /// </summary>
-    public partial class RedisCacheManager : IStaticCacheManager
+    public partial class RedisCacheManager : BaseCacheManager, IStaticCacheManager
     {
         #region Fields
 
@@ -82,7 +83,7 @@ namespace Nop.Core.Caching
             var serializedItem = JsonConvert.SerializeObject(data);
 
             //and set it to cache
-            _cache.SetString(key, serializedItem, cacheOptions);
+            _cache.SetString(AddKey(key), serializedItem, cacheOptions);
         }
 
         /// <summary>
@@ -108,7 +109,7 @@ namespace Nop.Core.Caching
         public virtual void Remove(string key)
         {
             //remove item from caches
-            _cache.Remove(key);
+            _cache.Remove(RemoveKey(key));
             _perRequestCacheManager.Remove(key);
         }
 
@@ -118,9 +119,7 @@ namespace Nop.Core.Caching
         /// <param name="pattern">String key pattern</param>
         public virtual void RemoveByPattern(string pattern)
         {
-#if NET451
-            //todo
-#endif
+            this.RemoveByPattern(pattern, _allKeys.Where(p => p.Value).Select(p => p.Key));
         }
 
         /// <summary>
@@ -128,9 +127,10 @@ namespace Nop.Core.Caching
         /// </summary>
         public virtual void Clear()
         {
-#if NET451
-            //todo
-#endif
+            foreach (var key in _allKeys.Where(k => k.Value).Select(k => k.Key))
+            {
+                Remove(key);
+            }
         }
 
         /// <summary>
